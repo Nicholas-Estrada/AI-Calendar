@@ -8,7 +8,7 @@ Local Intelligent Academic Scheduler (LIAS) turns an unstructured assignment or 
 - A FastAPI API matching the SRS endpoints
 - SQLite assignments and milestones with cascading deletes
 - iCalendar export for Apple Calendar, Google Calendar, and compatible clients
-- React + TypeScript UI with FullCalendar and browser speech input
+- React + TypeScript UI with FullCalendar and fully local Whisper speech input
 - Backend API tests that do not require Ollama
 
 ## Prerequisites
@@ -23,9 +23,28 @@ Pull a local model before starting LIAS:
 ollama pull llama3.1:8b
 ```
 
+The microphone uses `faster-whisper` locally instead of the browser's network-backed speech
+service. Download its small English model once during setup:
+
+```bash
+cd backend
+uv sync --all-extras
+uv run python scripts/download_whisper_model.py
+```
+
 ## Run locally
 
-Backend:
+From the main project folder, the simplest first run is:
+
+```bash
+./scripts/setup.sh
+./scripts/dev.sh
+```
+
+The setup script installs both dependency sets and downloads the small local speech model.
+The development script starts FastAPI and Vite together; stop both with `Control-C`.
+
+To run the services separately, start the backend in one terminal:
 
 ```bash
 cd backend
@@ -49,6 +68,7 @@ Open `http://localhost:5173`. The Vite development server proxies `/api` request
 | Method | Route | Purpose |
 | --- | --- | --- |
 | `POST` | `/api/schedule/generate` | Generate and validate a proposed schedule without saving it |
+| `POST` | `/api/transcribe` | Transcribe uploaded microphone audio with local Whisper |
 | `POST` | `/api/schedule/commit` | Save an approved schedule to SQLite |
 | `GET` | `/api/events` | Return FullCalendar-compatible deadline and milestone events |
 | `GET` | `/api/schedule/export` | Download all saved events as an `.ics` file |

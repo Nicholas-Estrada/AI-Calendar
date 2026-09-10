@@ -1,6 +1,7 @@
 from typing import Annotated
 
-from fastapi import APIRouter, Depends, HTTPException, status
+from fastapi import APIRouter, Depends, File, HTTPException, UploadFile, status
+from fastapi.concurrency import run_in_threadpool
 from fastapi.responses import Response
 
 from app.config import Settings, get_settings
@@ -11,6 +12,7 @@ from app.models import (
     CommittedSchedule,
     GenerateScheduleRequest,
     ScheduleProposal,
+    TranscriptionResponse,
 )
 from app.services.ical import build_calendar
 from app.services.ollama import (
@@ -19,14 +21,26 @@ from app.services.ollama import (
     OllamaScheduler,
     get_scheduler,
 )
+from app.services.transcription import (
+    LocalTranscriber,
+    TranscriptionUnavailableError,
+    get_transcriber,
+)
 
 router = APIRouter(prefix="/api")
+MAX_AUDIO_BYTES = 15 * 1024 * 1024
 
 
 def scheduler_dependency(
     settings: Annotated[Settings, Depends(get_settings)],
 ) -> OllamaScheduler:
     return get_scheduler(settings)
+
+
+def transcriber_dependency(
+    settings: Annotated[Settings, Depends(get_settings)],
+) -> LocalTranscriber:
+    return get_transcriber(settings)
 
 
 @router.post("/schedule/generate", response_model=ScheduleProposal)
@@ -44,6 +58,40 @@ async def generate_schedule(
         raise HTTPException(
             status_code=status.HTTP_422_UNPROCESSABLE_ENTITY, detail=str(error)
         ) from error
+
+
+@router.post("/transcribe", response_model=TranscriptionResponse)
+async def transcribe_audio(
+    audio: Annotated[UploadFile, File(description="Recorded microphone audio")],
+    transcriber: Annotated[LocalTranscriber, Depends(transcriber_dependency)],
+) -> TranscriptionResponse:
+    if audio.content_type and not audio.content_type.startswith("audio/"):
+        raise HTTPException(
+            status_code=status.HTTP_415_UNSUPPORTED_MEDIA_TYPE,
+            detail="The uploaded file must contain audio.",
+        )
+
+    contents = await audio.read(MAX_AUDIO_BYTES + 1)
+    if not contents:
+        raise HTTPException(
+            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+            detail="The recording was empty. Please try again.",
+        )
+    if len(contents) > MAX_AUDIO_BYTES:
+        raise HTTPException(
+            status_code=status.HTTP_413_CONTENT_TOO_LARGE,
+            detail="The recording is too large. Keep dictation under a few minutes.",
+        )
+
+    try:
+        text = await run_in_threadpool(transcriber.transcribe, contents)
+    except TranscriptionUnavailableError as error:
+        raise HTTPException(
+            status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+            detail=str(error),
+        ) from error
+
+    return TranscriptionResponse(text=text)
 
 
 @router.post(

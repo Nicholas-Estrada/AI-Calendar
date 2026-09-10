@@ -35,7 +35,8 @@ FastAPI ---- SQLite ---- Ollama client
 ### 3.1 Input and ingestion
 
 - Accept raw text and live microphone input.
-- Prefer the browser-native `SpeechRecognition` interface for a zero-dependency client path.
+- Record audio with the browser `MediaRecorder` API and transcribe it with local Whisper.
+- Do not use browser `SpeechRecognition`, because implementations may call a remote service.
 - Deliver transcribed input to the orchestrator as clean UTF-8 text.
 
 ### 3.2 Core inference engine

@@ -4,13 +4,26 @@ import type { CalendarEvent, ScheduleProposal } from './types'
 
 const api = axios.create({
   baseURL: '/api',
-  headers: { 'Content-Type': 'application/json' },
   timeout: 10_000,
 })
 
 export async function generateSchedule(text: string): Promise<ScheduleProposal> {
-  const response = await api.post<ScheduleProposal>('/schedule/generate', { text })
+  const response = await api.post<ScheduleProposal>(
+    '/schedule/generate',
+    { text },
+    { timeout: 130_000 },
+  )
   return response.data
+}
+
+export async function transcribeAudio(audio: Blob): Promise<string> {
+  const extension = audio.type.includes('mp4') ? 'm4a' : 'webm'
+  const form = new FormData()
+  form.append('audio', audio, `recording.${extension}`)
+  const response = await api.post<{ text: string }>('/transcribe', form, {
+    timeout: 180_000,
+  })
+  return response.data.text
 }
 
 export async function commitSchedule(

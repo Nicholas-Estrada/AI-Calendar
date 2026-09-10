@@ -4,7 +4,7 @@ import { useCallback, useEffect, useState } from 'react'
 
 import { commitSchedule, fetchEvents, generateSchedule, getErrorMessage } from './api'
 import type { CalendarEvent, ScheduleProposal } from './types'
-import { useSpeechRecognition } from './useSpeechRecognition'
+import { useLocalSpeechInput } from './useLocalSpeechInput'
 
 const examplePrompt = 'I have a 3-page research essay due September 20 about urban ecology.'
 
@@ -18,8 +18,8 @@ export default function App() {
   const [notice, setNotice] = useState<string | null>(null)
 
   const handleTranscript = useCallback((transcript: string) => setPrompt(transcript), [])
-  const { isListening, speechError, speechSupported, toggleListening } =
-    useSpeechRecognition(handleTranscript)
+  const { isListening, isTranscribing, speechError, speechSupported, toggleListening } =
+    useLocalSpeechInput(handleTranscript)
 
   const refreshEvents = useCallback(async () => {
     try {
@@ -102,12 +102,16 @@ export default function App() {
               <button
                 className={`speech-button ${isListening ? 'is-listening' : ''}`}
                 type="button"
-                onClick={toggleListening}
-                disabled={!speechSupported}
-                title={speechSupported ? 'Dictate assignment' : 'Speech input is unavailable'}
+                onClick={() => void toggleListening()}
+                disabled={!speechSupported || isTranscribing}
+                title={speechSupported ? 'Record and transcribe locally' : 'Speech input is unavailable'}
               >
-                <span aria-hidden="true">{isListening ? '■' : '●'}</span>
-                {isListening ? 'Stop listening' : 'Speak it'}
+                <span aria-hidden="true">{isListening ? '■' : isTranscribing ? '…' : '●'}</span>
+                {isListening
+                  ? 'Stop & transcribe'
+                  : isTranscribing
+                    ? 'Transcribing locally…'
+                    : 'Speak it'}
               </button>
               <button
                 className="primary-button"

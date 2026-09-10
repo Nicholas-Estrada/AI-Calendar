@@ -10,7 +10,11 @@ class Settings(BaseSettings):
     database_path: Path = Path("./data/lias.sqlite3")
     ollama_base_url: AnyHttpUrl = AnyHttpUrl("http://127.0.0.1:11434")
     ollama_model: str = "llama3.1:8b"
-    ollama_timeout_seconds: float = 4.5
+    ollama_timeout_seconds: float = 120
+    whisper_model: str = "tiny.en"
+    whisper_model_path: Path = Path("./data/models/faster-whisper-tiny.en")
+    whisper_device: str = "cpu"
+    whisper_compute_type: str = "int8"
     frontend_origin: str = "http://localhost:5173"
 
     model_config = SettingsConfigDict(
