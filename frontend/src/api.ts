@@ -1,10 +1,17 @@
 import axios from 'axios'
 
-import type { CalendarEvent, ScheduleProposal } from './types'
+import { auth } from './firebase'
+import type { ScheduleProposal } from './types'
 
 const api = axios.create({
-  baseURL: '/api',
+  baseURL: import.meta.env.VITE_API_BASE_URL ?? '/api',
   timeout: 10_000,
+})
+
+api.interceptors.request.use(async (config) => {
+  const token = await auth.currentUser?.getIdToken()
+  if (token) config.headers.Authorization = `Bearer ${token}`
+  return config
 })
 
 export async function generateSchedule(text: string): Promise<ScheduleProposal> {
@@ -24,18 +31,6 @@ export async function transcribeAudio(audio: Blob): Promise<string> {
     timeout: 180_000,
   })
   return response.data.text
-}
-
-export async function commitSchedule(
-  proposal: ScheduleProposal,
-  rawPrompt: string,
-): Promise<void> {
-  await api.post('/schedule/commit', { ...proposal, raw_prompt: rawPrompt })
-}
-
-export async function fetchEvents(): Promise<CalendarEvent[]> {
-  const response = await api.get<CalendarEvent[]>('/events')
-  return response.data
 }
 
 export function getErrorMessage(error: unknown): string {
