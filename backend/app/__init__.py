@@ -1,1 +1,1 @@
-"""LIAS backend package."""
+"""AI Calendar backend package."""

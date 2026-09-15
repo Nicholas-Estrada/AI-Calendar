@@ -1,59 +1,72 @@
-# LIAS
+# AI Calendar
 
-Local Intelligent Academic Scheduler (LIAS) turns an unstructured assignment or exam description into a reviewable milestone plan. All schedule data and inference stay on the local machine: FastAPI talks only to a local Ollama daemon, persists to SQLite, and serves a React calendar.
+AI Calendar helps students turn an assignment or exam description into a reviewable milestone
+plan. The React web app signs users in with Firebase Authentication, syncs approved calendar
+events through Cloud Firestore, and asks a FastAPI backend to generate structured plans with the
+Gemini API.
 
 ## What is included
 
-- Structured Ollama inference validated with Pydantic
-- A FastAPI API matching the SRS endpoints
-- SQLite assignments and milestones with cascading deletes
-- iCalendar export for Apple Calendar, Google Calendar, and compatible clients
-- React + TypeScript UI with FullCalendar and fully local Whisper speech input
-- Backend API tests that do not require Ollama
+- A responsive React + TypeScript login and calendar experience
+- Google sign-in through Firebase Authentication
+- Per-user realtime calendar storage in Cloud Firestore
+- Owner-only Firestore Security Rules
+- Gemini structured output validated with Pydantic
+- Firebase ID-token verification on protected FastAPI routes
+- Local Whisper speech transcription
+- iCalendar and SQLite compatibility endpoints retained during the cloud migration
 
 ## Prerequisites
 
 - Python 3.11+
 - Node.js 20+
-- [Ollama](https://ollama.com/) running locally
+- A Firebase project with Google Authentication and Firestore enabled
+- A Gemini API key when schedule generation is ready to be tested
 
-Pull a local model before starting LIAS:
+## Configure Firebase
+
+The repository is connected to Firebase project `lias-abff9` in `.firebaserc`.
+
+1. In Firebase Console, create the Firestore database if it does not exist.
+2. Under Authentication → Sign-in method, enable Google.
+3. Add local and production hosts to Authentication → Authorized domains.
+4. Copy `.env.example` to `.env` and provide the Firebase web API key.
+5. Install Firebase CLI if needed, sign in, and deploy the rules:
 
 ```bash
-ollama pull llama3.1:8b
+firebase deploy --only firestore
 ```
 
-The microphone uses `faster-whisper` locally instead of the browser's network-backed speech
-service. Download its small English model once during setup:
+The Firebase web key is project metadata, not a server secret. The Gemini key must never use a
+`VITE_` variable or appear in frontend code.
 
-```bash
-cd backend
-uv sync --all-extras
-uv run python scripts/download_whisper_model.py
+## Configure Gemini
+
+Copy `backend/.env.example` to `backend/.env`, then set:
+
+```dotenv
+LIAS_GEMINI_API_KEY=your-server-side-key
 ```
+
+The default model is configurable through `LIAS_GEMINI_MODEL`. With no key, the backend starts
+normally and `/health` reports `inference: not_configured`; generation returns an actionable 503.
 
 ## Run locally
 
-From the main project folder, the simplest first run is:
+From the project root:
 
 ```bash
 ./scripts/setup.sh
 ./scripts/dev.sh
 ```
 
-The setup script installs both dependency sets and downloads the small local speech model.
-The development script starts FastAPI and Vite together; stop both with `Control-C`.
-
-To run the services separately, start the backend in one terminal:
+Or run the services separately:
 
 ```bash
 cd backend
 uv sync --all-extras
-cp .env.example .env
 uv run uvicorn app.main:app --reload
 ```
-
-Frontend, in a second terminal:
 
 ```bash
 cd frontend
@@ -61,21 +74,24 @@ npm install
 npm run dev
 ```
 
-Open `http://localhost:5173`. The Vite development server proxies `/api` requests to `http://127.0.0.1:8000`.
+Open `http://localhost:5173`. Vite proxies `/api` to `http://127.0.0.1:8000`.
 
-## API
+## Data model
 
-| Method | Route | Purpose |
-| --- | --- | --- |
-| `POST` | `/api/schedule/generate` | Generate and validate a proposed schedule without saving it |
-| `POST` | `/api/transcribe` | Transcribe uploaded microphone audio with local Whisper |
-| `POST` | `/api/schedule/commit` | Save an approved schedule to SQLite |
-| `GET` | `/api/events` | Return FullCalendar-compatible deadline and milestone events |
-| `GET` | `/api/schedule/export` | Download all saved events as an `.ics` file |
-| `GET` | `/health` | Report API and local Ollama availability |
+Each account owns its data under these Firestore paths:
 
-## Configuration
+```text
+users/{uid}
+users/{uid}/assignments/{assignmentId}
+users/{uid}/events/{eventId}
+```
 
-Backend settings use the `LIAS_` prefix. See [`backend/.env.example`](backend/.env.example) for available values.
+The React app subscribes to the signed-in user's events. An approved proposal is committed as one
+Firestore batch containing the assignment, milestone events, and final deadline.
 
-The project requirements are preserved in [`docs/SRS.md`](docs/SRS.md).
+## Verification
+
+```bash
+cd frontend && npm run build
+cd backend && uv run ruff check . && uv run pytest -q
+```

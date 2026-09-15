@@ -13,4 +13,4 @@ uv run python scripts/download_whisper_model.py
 cd "$project_root/frontend"
 npm install
 
-echo "LIAS setup complete. Run ./scripts/dev.sh from the project root."
+echo "AI Calendar setup complete. Run ./scripts/dev.sh from the project root."
