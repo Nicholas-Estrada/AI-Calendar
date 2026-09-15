@@ -2,13 +2,16 @@ import FullCalendar from '@fullcalendar/react'
 import dayGridPlugin from '@fullcalendar/daygrid'
 import { useCallback, useEffect, useState } from 'react'
 
-import { commitSchedule, fetchEvents, generateSchedule, getErrorMessage } from './api'
+import { generateSchedule, getErrorMessage } from './api'
+import { useAuth } from './AuthContext'
+import { saveScheduleToFirestore, subscribeToCalendarEvents } from './calendarStore'
 import type { CalendarEvent, ScheduleProposal } from './types'
 import { useLocalSpeechInput } from './useLocalSpeechInput'
 
 const examplePrompt = 'I have a 3-page research essay due September 20 about urban ecology.'
 
 export default function App() {
+  const { signOutUser, user } = useAuth()
   const [prompt, setPrompt] = useState('')
   const [proposal, setProposal] = useState<ScheduleProposal | null>(null)
   const [events, setEvents] = useState<CalendarEvent[]>([])
@@ -21,17 +24,10 @@ export default function App() {
   const { isListening, isTranscribing, speechError, speechSupported, toggleListening } =
     useLocalSpeechInput(handleTranscript)
 
-  const refreshEvents = useCallback(async () => {
-    try {
-      setEvents(await fetchEvents())
-    } catch {
-      // Initial empty state remains usable while the backend starts.
-    }
-  }, [])
-
   useEffect(() => {
-    void refreshEvents()
-  }, [refreshEvents])
+    if (!user) return
+    return subscribeToCalendarEvents(user.uid, setEvents, setError)
+  }, [user])
 
   async function handleGenerate() {
     if (prompt.trim().length < 3) return
@@ -49,15 +45,14 @@ export default function App() {
   }
 
   async function handleCommit() {
-    if (!proposal) return
+    if (!proposal || !user) return
     setIsCommitting(true)
     setError(null)
     try {
-      await commitSchedule(proposal, prompt.trim())
-      await refreshEvents()
+      await saveScheduleToFirestore(user.uid, proposal, prompt.trim())
       setProposal(null)
       setPrompt('')
-      setNotice('Schedule saved locally and added to your calendar.')
+      setNotice('Schedule saved and synced to your calendar.')
     } catch (caught) {
       setError(getErrorMessage(caught))
     } finally {
@@ -68,24 +63,32 @@ export default function App() {
   return (
     <div className="app-shell">
       <header className="masthead">
-        <a className="brand" href="#top" aria-label="LIAS home">
-          <span className="brand-mark">L</span>
-          <span>LIAS</span>
+        <a className="brand" href="#top" aria-label="AI Calendar home">
+          <span className="brand-mark">AI</span>
+          <span>AI Calendar</span>
         </a>
-        <p>Private by design · Powered locally</p>
-        <a className="export-link" href="/api/schedule/export" download>
-          Export calendar
-        </a>
+        <p>Plan clearly · Sync everywhere</p>
+        <div className="account-menu">
+          {user?.photoURL ? (
+            <img src={user.photoURL} alt="" referrerPolicy="no-referrer" />
+          ) : (
+            <span className="account-initial" aria-hidden="true">
+              {(user?.displayName ?? user?.email ?? 'S').charAt(0).toUpperCase()}
+            </span>
+          )}
+          <span>{user?.displayName?.split(' ')[0] ?? 'Student'}</span>
+          <button type="button" onClick={() => void signOutUser()}>Sign out</button>
+        </div>
       </header>
 
       <main id="top">
         <section className="hero">
           <div className="hero-copy">
-            <p className="eyebrow">Local intelligent academic scheduler</p>
+            <p className="eyebrow">Your intelligent academic scheduler</p>
             <h1>Turn a deadline into a plan you can actually follow.</h1>
             <p className="hero-description">
-              Describe the work in your own words. LIAS uses a model on your machine to
-              map the deadline, stage the work, and place each milestone on your calendar.
+              Describe the work in your own words. AI Calendar maps the deadline, stages
+              the work, and syncs every approved milestone to your calendar.
             </p>
           </div>
 
@@ -104,13 +107,13 @@ export default function App() {
                 type="button"
                 onClick={() => void toggleListening()}
                 disabled={!speechSupported || isTranscribing}
-                title={speechSupported ? 'Record and transcribe locally' : 'Speech input is unavailable'}
+                title={speechSupported ? 'Record and transcribe' : 'Speech input is unavailable'}
               >
                 <span aria-hidden="true">{isListening ? '■' : isTranscribing ? '…' : '●'}</span>
                 {isListening
                   ? 'Stop & transcribe'
                   : isTranscribing
-                    ? 'Transcribing locally…'
+                    ? 'Transcribing…'
                     : 'Speak it'}
               </button>
               <button
@@ -195,8 +198,8 @@ export default function App() {
       </main>
 
       <footer>
-        <p>Nothing leaves this machine.</p>
-        <p>LIAS · local model · local database · your schedule</p>
+        <p>Your plans stay private to your account.</p>
+        <p>AI Calendar · plan clearly · study calmly</p>
       </footer>
     </div>
   )
