@@ -4,6 +4,7 @@ from fastapi import APIRouter, Depends, File, HTTPException, UploadFile, status
 from fastapi.concurrency import run_in_threadpool
 from fastapi.responses import Response
 
+from app.auth import require_authenticated_user
 from app.config import Settings, get_settings
 from app.database import commit_schedule, list_calendar_events
 from app.models import (
@@ -14,26 +15,27 @@ from app.models import (
     ScheduleProposal,
     TranscriptionResponse,
 )
-from app.services.ical import build_calendar
-from app.services.ollama import (
+from app.services.gemini import (
+    GeminiScheduler,
     InferenceUnavailableError,
     InvalidInferenceError,
-    OllamaScheduler,
     get_scheduler,
 )
+from app.services.ical import build_calendar
+from app.services.scheduler import Scheduler
 from app.services.transcription import (
     LocalTranscriber,
     TranscriptionUnavailableError,
     get_transcriber,
 )
 
-router = APIRouter(prefix="/api")
+router = APIRouter(prefix="/api", dependencies=[Depends(require_authenticated_user)])
 MAX_AUDIO_BYTES = 15 * 1024 * 1024
 
 
 def scheduler_dependency(
     settings: Annotated[Settings, Depends(get_settings)],
-) -> OllamaScheduler:
+) -> GeminiScheduler:
     return get_scheduler(settings)
 
 
@@ -46,7 +48,7 @@ def transcriber_dependency(
 @router.post("/schedule/generate", response_model=ScheduleProposal)
 async def generate_schedule(
     request: GenerateScheduleRequest,
-    scheduler: Annotated[OllamaScheduler, Depends(scheduler_dependency)],
+    scheduler: Annotated[Scheduler, Depends(scheduler_dependency)],
 ) -> ScheduleProposal:
     try:
         return await scheduler.generate(request)

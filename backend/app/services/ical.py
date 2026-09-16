@@ -26,10 +26,10 @@ def build_calendar(events: list[CalendarEvent]) -> bytes:
     lines = [
         "BEGIN:VCALENDAR",
         "VERSION:2.0",
-        "PRODID:-//LIAS//Local Intelligent Academic Scheduler//EN",
+        "PRODID:-//AI Calendar//Academic Scheduler//EN",
         "CALSCALE:GREGORIAN",
         "METHOD:PUBLISH",
-        "X-WR-CALNAME:LIAS Academic Schedule",
+        "X-WR-CALNAME:AI Calendar",
     ]
     for event in events:
         description = event.extendedProps.get("description", "")

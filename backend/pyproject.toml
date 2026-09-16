@@ -3,13 +3,15 @@ requires = ["hatchling>=1.27"]
 build-backend = "hatchling.build"
 
 [project]
-name = "lias-backend"
+name = "ai-calendar-backend"
 version = "0.1.0"
-description = "Local Intelligent Academic Scheduler API"
+description = "AI Calendar API"
 requires-python = ">=3.11"
 dependencies = [
   "fastapi>=0.116,<1",
   "faster-whisper>=1.2,<2",
+  "firebase-admin>=6,<8",
+  "google-genai>=1,<2",
   "httpx>=0.28,<1",
   "pydantic>=2.11,<3",
   "pydantic-settings>=2.10,<3",

@@ -8,7 +8,7 @@ from app.api import router
 from app.config import Settings, get_settings
 from app.database import initialize_database
 from app.models import HealthResponse
-from app.services.ollama import OllamaScheduler
+from app.services.gemini import GeminiScheduler
 
 
 def create_app(settings: Settings | None = None) -> FastAPI:
@@ -29,15 +29,21 @@ def create_app(settings: Settings | None = None) -> FastAPI:
         allow_origins=[active_settings.frontend_origin],
         allow_credentials=False,
         allow_methods=["GET", "POST"],
-        allow_headers=["Content-Type"],
+        allow_headers=["Authorization", "Content-Type"],
     )
     application.include_router(router)
     application.dependency_overrides[get_settings] = lambda: active_settings
 
     @application.get("/health", response_model=HealthResponse)
     async def health() -> HealthResponse:
-        scheduler = OllamaScheduler(active_settings)
-        return HealthResponse(status="ok", ollama=await scheduler.status())
+        scheduler = GeminiScheduler(active_settings)
+        return HealthResponse(
+            status="ok",
+            inference=await scheduler.status(),
+            authentication=(
+                "required" if active_settings.firebase_auth_required else "development_bypass"
+            ),
+        )
 
     return application
 

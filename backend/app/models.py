@@ -75,7 +75,8 @@ class CalendarEvent(StrictModel):
 
 class HealthResponse(StrictModel):
     status: str
-    ollama: str
+    inference: str
+    authentication: str
 
 
 class TranscriptionResponse(StrictModel):

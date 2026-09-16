@@ -37,7 +37,7 @@ class FakeTranscriber:
 
 
 def make_client(database_path: Path) -> TestClient:
-    settings = Settings(database_path=database_path)
+    settings = Settings(database_path=database_path, firebase_auth_required=False)
     app = create_app(settings)
     app.dependency_overrides[scheduler_dependency] = lambda: FakeScheduler()
     app.dependency_overrides[transcriber_dependency] = lambda: FakeTranscriber()
@@ -112,3 +112,33 @@ def test_rejects_non_audio_upload(tmp_path: Path) -> None:
         )
 
         assert response.status_code == 415
+
+
+def test_requires_authentication_by_default(tmp_path: Path) -> None:
+    app = create_app(Settings(database_path=tmp_path / "test.sqlite3"))
+    app.dependency_overrides[scheduler_dependency] = lambda: FakeScheduler()
+
+    with TestClient(app) as client:
+        response = client.post(
+            "/api/schedule/generate",
+            json={"text": "Essay due September 20"},
+        )
+
+    assert response.status_code == 401
+    assert response.json()["detail"] == "Sign in before using the AI Calendar API."
+
+
+def test_health_reports_unconfigured_gemini(tmp_path: Path) -> None:
+    app = create_app(
+        Settings(database_path=tmp_path / "test.sqlite3", firebase_auth_required=False)
+    )
+
+    with TestClient(app) as client:
+        response = client.get("/health")
+
+    assert response.status_code == 200
+    assert response.json() == {
+        "status": "ok",
+        "inference": "not_configured",
+        "authentication": "development_bypass",
+    }
