@@ -4,7 +4,7 @@ from contextlib import asynccontextmanager
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
-from app.api import router
+from app.api import public_router, router
 from app.config import Settings, get_settings
 from app.database import initialize_database
 from app.models import HealthResponse
@@ -32,6 +32,7 @@ def create_app(settings: Settings | None = None) -> FastAPI:
         allow_headers=["Authorization", "Content-Type"],
     )
     application.include_router(router)
+    application.include_router(public_router)
     application.dependency_overrides[get_settings] = lambda: active_settings
 
     @application.get("/health", response_model=HealthResponse)

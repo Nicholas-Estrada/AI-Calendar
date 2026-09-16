@@ -18,6 +18,7 @@ class Settings(BaseSettings):
     whisper_device: str = "cpu"
     whisper_compute_type: str = "int8"
     frontend_origin: str = "http://localhost:5173"
+    public_api_origin: str | None = None
 
     model_config = SettingsConfigDict(
         env_file=".env",

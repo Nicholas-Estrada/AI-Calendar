@@ -2,13 +2,19 @@ import FullCalendar from '@fullcalendar/react'
 import dayGridPlugin from '@fullcalendar/daygrid'
 import { useCallback, useEffect, useState, type FormEvent } from 'react'
 
-import { generateSchedule, getErrorMessage } from './api'
+import {
+  generateSchedule,
+  getCalendarSubscriptionUrl,
+  getErrorMessage,
+  resetCalendarSubscriptionUrl,
+} from './api'
 import { useAuth } from './AuthContext'
 import {
   saveManualEventToFirestore,
   saveScheduleToFirestore,
   subscribeToCalendarEvents,
 } from './calendarStore'
+import { downloadIcal } from './icalExport'
 import {
   saveManualEventLocally,
   saveScheduleLocally,
@@ -34,6 +40,9 @@ export default function App() {
   const [showManualForm, setShowManualForm] = useState(false)
   const [isGenerating, setIsGenerating] = useState(false)
   const [isCommitting, setIsCommitting] = useState(false)
+  const [isPreparingSubscription, setIsPreparingSubscription] = useState(false)
+  const [showCalendarOptions, setShowCalendarOptions] = useState(false)
+  const [subscriptionUrl, setSubscriptionUrl] = useState<string | null>(null)
   const [isSavingManualEvent, setIsSavingManualEvent] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [calendarError, setCalendarError] = useState<string | null>(null)
@@ -60,6 +69,44 @@ export default function App() {
       setError(getErrorMessage(caught))
     } finally {
       setIsGenerating(false)
+    }
+  }
+
+  async function handleAddToCalendar() {
+    setShowCalendarOptions(true)
+    setCalendarError(null)
+    if (isGuest || subscriptionUrl) return
+    setIsPreparingSubscription(true)
+    try {
+      setSubscriptionUrl(await getCalendarSubscriptionUrl())
+    } catch (caught) {
+      setCalendarError(getErrorMessage(caught))
+    } finally {
+      setIsPreparingSubscription(false)
+    }
+  }
+
+  async function handleCopySubscription() {
+    if (!subscriptionUrl) return
+    try {
+      await navigator.clipboard.writeText(subscriptionUrl)
+      setCalendarNotice('Subscription link copied. Keep it private; anyone with the link can view your events.')
+    } catch {
+      setCalendarError('Could not copy the link. Select and copy it below.')
+    }
+  }
+
+  async function handleResetSubscription() {
+    setIsPreparingSubscription(true)
+    setCalendarError(null)
+    setCalendarNotice(null)
+    try {
+      setSubscriptionUrl(await resetCalendarSubscriptionUrl())
+      setCalendarNotice('Private link reset. Previous subscriptions will stop updating; add the new link to your calendar app.')
+    } catch (caught) {
+      setCalendarError(getErrorMessage(caught))
+    } finally {
+      setIsPreparingSubscription(false)
     }
   }
 
@@ -227,6 +274,14 @@ export default function App() {
             </div>
             <div className="calendar-control-area">
               <button
+                className="google-calendar-button"
+                type="button"
+                onClick={() => void handleAddToCalendar()}
+                disabled={isPreparingSubscription}
+              >
+                {isPreparingSubscription ? 'Preparing link…' : 'Add to Calendar'}
+              </button>
+              <button
                 className="primary-button"
                 type="button"
                 onClick={() => {
@@ -243,6 +298,46 @@ export default function App() {
           {calendarError && <p className="message error calendar-feedback">{calendarError}</p>}
           {calendarNotice && (
             <p className="message success calendar-feedback">{calendarNotice}</p>
+          )}
+
+          {showCalendarOptions && (
+            <div className="calendar-options" aria-label="Add to another calendar">
+              <div className="calendar-options-heading">
+                <div>
+                  <p className="eyebrow">Add to Calendar</p>
+                  <h3>{isGuest ? 'Export your guest calendar' : 'Subscribe to your calendar'}</h3>
+                </div>
+                <button className="text-button" type="button" onClick={() => setShowCalendarOptions(false)}>Close</button>
+              </div>
+              {isGuest ? (
+                <>
+                  <p>Download your events, then import the file into a new calendar in Apple Calendar, Google Calendar, or another app. The imported calendar can be toggled on or off. Export again after you make changes here.</p>
+                  <button className="primary-button" type="button" onClick={() => downloadIcal(events)} disabled={!events.length}>
+                    Download .ics file
+                  </button>
+                </>
+              ) : (
+                <>
+                  <p>Subscribe once to a separate, read-only AI Calendar. New events saved here will appear when your calendar app refreshes. Keep this private link to yourself.</p>
+                  {subscriptionUrl && (
+                    <>
+                      <div className="calendar-link-row">
+                        <input aria-label="Private calendar subscription link" readOnly value={subscriptionUrl} onFocus={(event) => event.target.select()} />
+                        <button className="google-calendar-button" type="button" onClick={() => void handleCopySubscription()}>Copy link</button>
+                      </div>
+                      <div className="calendar-option-actions">
+                        <a className="primary-button" href={subscriptionUrl.replace(/^https?:/, 'webcal:')}>Open in Apple Calendar</a>
+                        <a className="google-calendar-button" href="https://calendar.google.com/calendar/u/0/r/settings/addbyurl" target="_blank" rel="noopener noreferrer">Open Google Calendar settings</a>
+                      </div>
+                      <p className="calendar-help">In Google Calendar, choose <strong>Other calendars → From URL</strong> and paste the link. Apple Calendar can open the subscription link directly.</p>
+                      <button className="text-button calendar-reset-button" type="button" disabled={isPreparingSubscription} onClick={() => void handleResetSubscription()}>
+                        Reset private link (stops old subscriptions)
+                      </button>
+                    </>
+                  )}
+                </>
+              )}
+            </div>
           )}
 
           {showManualForm && (
@@ -378,7 +473,7 @@ export default function App() {
               <span><i className="milestone-dot" /> Milestone</span>
               <span><i className="deadline-dot" /> Deadline</span>
             </div>
-            <span>{isGuest ? 'Guest events are stored in this browser.' : 'Your events are saved to your account.'}</span>
+            <span>{isGuest ? 'Guest events are stored in this browser.' : 'Your subscription shows these events in other calendar apps.'}</span>
           </div>
 
           <div className="calendar-scroll">
