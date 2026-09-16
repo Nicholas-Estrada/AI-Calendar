@@ -130,7 +130,11 @@ def test_requires_authentication_by_default(tmp_path: Path) -> None:
 
 def test_health_reports_unconfigured_gemini(tmp_path: Path) -> None:
     app = create_app(
-        Settings(database_path=tmp_path / "test.sqlite3", firebase_auth_required=False)
+        Settings(
+            database_path=tmp_path / "test.sqlite3",
+            firebase_auth_required=False,
+            gemini_api_key=None,
+        )
     )
 
     with TestClient(app) as client:

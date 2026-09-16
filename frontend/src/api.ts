@@ -38,6 +38,9 @@ export function getErrorMessage(error: unknown): string {
     const detail = error.response?.data?.detail
     if (typeof detail === 'string') return detail
     if (!error.response) return 'The local API is not responding. Start the FastAPI server.'
+    if (error.response.status >= 500) {
+      return 'The local API had an error. Check the FastAPI terminal and try again.'
+    }
   }
-  return 'Something went wrong while building the schedule.'
+  return 'Something went wrong. Please try again.'
 }

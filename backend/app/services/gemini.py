@@ -57,12 +57,35 @@ class GeminiScheduler:
                     ),
                     temperature=0,
                     response_mime_type="application/json",
-                    response_schema=ScheduleProposal,
+                    response_json_schema=ScheduleProposal.model_json_schema(),
                 ),
             )
-        except (errors.APIError, httpx.HTTPError, TimeoutError) as error:
+        except errors.APIError as error:
+            if error.code in (401, 403):
+                message = (
+                    "Gemini rejected the API key or its permissions. "
+                    "Check the key in backend/.env."
+                )
+            elif error.code == 404:
+                message = (
+                    f"Gemini model {self.settings.gemini_model} is unavailable to this API key."
+                )
+            elif error.code == 429:
+                message = (
+                    "Gemini's quota or rate limit was reached. Check your usage and try later."
+                )
+            elif error.code == 400:
+                message = (
+                    "Gemini rejected the schedule request. Check the configured model and schema."
+                )
+            elif error.code == 503:
+                message = "Gemini is busy right now. Please retry your plan in a moment."
+            else:
+                message = "Gemini could not build a schedule right now. Please try again shortly."
+            raise InferenceUnavailableError(message) from error
+        except (httpx.HTTPError, TimeoutError) as error:
             raise InferenceUnavailableError(
-                "Gemini could not build a schedule right now. Please try again shortly."
+                "The server could not reach Gemini. Check its network connection and try again."
             ) from error
         finally:
             await async_client.aclose()
