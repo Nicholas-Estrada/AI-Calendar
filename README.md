@@ -11,6 +11,7 @@ iCalendar subscription feeds for signed-in users.
 - Google sign-in through Firebase Authentication
 - Guest entry through Firebase anonymous authentication, with events stored in this browser
 - Manual events and deadlines on the calendar
+- Clickable event details with dates, times, and task instructions
 - Per-user realtime calendar storage in Cloud Firestore
 - A separate, read-only iCalendar subscription for Apple Calendar, Google Calendar, and compatible apps
 - One-time `.ics` export for guest calendars

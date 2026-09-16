@@ -98,6 +98,7 @@ export async function saveScheduleToFirestore(
     kind: 'deadline',
     source: 'ai',
     start: proposal.final_due_date,
+    description: `Submit ${proposal.assignment_title}. ${rawPrompt.trim()}`.slice(0, 1000),
     status: 'PENDING',
     title: `Due: ${proposal.assignment_title}`,
     ...googleEventFields(googleEvents[0]),
