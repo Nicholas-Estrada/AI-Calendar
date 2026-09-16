@@ -1,14 +1,14 @@
 # AI Calendar
 
 AI Calendar helps students turn an assignment or exam description into a reviewable milestone
-plan. The React web app signs users in with Firebase Authentication, syncs approved calendar
-events through Cloud Firestore, and asks a FastAPI backend to generate structured plans with the
-Gemini API.
+plan. Guests keep approved events in browser storage; signed-in users sync events through Cloud
+Firestore. A FastAPI backend generates structured plans with the Gemini API.
 
 ## What is included
 
 - A responsive React + TypeScript login and calendar experience
-- Google sign-in through Firebase Authentication
+- Google sign-in and guest entry through Firebase Authentication
+- Manual events and deadlines on the calendar
 - Per-user realtime calendar storage in Cloud Firestore
 - Owner-only Firestore Security Rules
 - Gemini structured output validated with Pydantic
@@ -20,7 +20,7 @@ Gemini API.
 
 - Python 3.11+
 - Node.js 20+
-- A Firebase project with Google Authentication and Firestore enabled
+- A Firebase project with Google and Anonymous Authentication and Firestore enabled
 - A Gemini API key when schedule generation is ready to be tested
 
 ## Configure Firebase
@@ -28,13 +28,14 @@ Gemini API.
 The repository is connected to Firebase project `lias-abff9` in `.firebaserc`.
 
 1. In Firebase Console, create the Firestore database if it does not exist.
-2. Under Authentication → Sign-in method, enable Google.
+2. Under Authentication → Sign-in method, enable Google. The repository's `firebase.json`
+   enables Anonymous when you deploy the Auth configuration.
 3. Add local and production hosts to Authentication → Authorized domains.
 4. Copy `.env.example` to `.env` and provide the Firebase web API key.
 5. Install Firebase CLI if needed, sign in, and deploy the rules:
 
 ```bash
-firebase deploy --only firestore
+firebase deploy --only auth,firestore
 ```
 
 The Firebase web key is project metadata, not a server secret. The Gemini key must never use a
@@ -86,8 +87,12 @@ users/{uid}/assignments/{assignmentId}
 users/{uid}/events/{eventId}
 ```
 
-The React app subscribes to the signed-in user's events. An approved proposal is committed as one
-Firestore batch containing the assignment, milestone events, and final deadline.
+The React app subscribes to a signed-in user's events. An approved proposal is committed as one
+Firestore batch containing the assignment, milestone events, and final deadline. Anonymous guest
+events are written to `localStorage` under `ai-calendar-guest-events-v1` and never written to
+Firestore. Manual events are saved alongside generated milestones. Anonymous authentication still
+gives guests an ID token for the protected AI API; plan prompts are sent to the backend for
+generation.
 
 ## Verification
 

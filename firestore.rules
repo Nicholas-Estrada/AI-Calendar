@@ -11,24 +11,64 @@ service cloud.firestore {
         && value.matches('^[0-9]{4}-[0-9]{2}-[0-9]{2}$');
     }
 
+    function isCalendarDateTime(value) {
+      return value is string
+        && value.matches('^[0-9]{4}-[0-9]{2}-[0-9]{2}T[0-9]{2}:[0-9]{2}:[0-9]{2}$');
+    }
+
+    function isCalendarStart(value) {
+      return isCalendarDate(value) || isCalendarDateTime(value);
+    }
+
     function isValidEvent() {
       return request.resource.data.keys().hasAll([
           'assignmentId', 'kind', 'source', 'start', 'status', 'title',
           'createdAt', 'updatedAt'
         ])
         && request.resource.data.keys().hasOnly([
-          'assignmentId', 'description', 'kind', 'source', 'start', 'status',
-          'title', 'createdAt', 'updatedAt'
+          'allDay', 'assignmentId', 'description', 'end', 'googleEventId',
+          'googleEventUrl', 'kind', 'source', 'start', 'status', 'title',
+          'createdAt', 'updatedAt'
         ])
         && request.resource.data.assignmentId is string
         && request.resource.data.assignmentId.size() > 0
-        && request.resource.data.kind in ['deadline', 'milestone']
+        && request.resource.data.kind in ['deadline', 'milestone', 'event']
         && request.resource.data.source in ['ai', 'manual']
-        && isCalendarDate(request.resource.data.start)
+        && isCalendarStart(request.resource.data.start)
         && request.resource.data.status in ['PENDING', 'COMPLETED']
         && request.resource.data.title is string
         && request.resource.data.title.size() > 0
         && request.resource.data.title.size() <= 200
+        && (
+          !request.resource.data.keys().hasAny(['allDay'])
+          || request.resource.data.allDay is bool
+        )
+        && (
+          !request.resource.data.keys().hasAny(['description'])
+          || (
+            request.resource.data.description is string
+            && request.resource.data.description.size() <= 1000
+          )
+        )
+        && (
+          !request.resource.data.keys().hasAny(['end'])
+          || isCalendarStart(request.resource.data.end)
+        )
+        && (
+          !request.resource.data.keys().hasAny(['googleEventId'])
+          || (
+            request.resource.data.googleEventId is string
+            && request.resource.data.googleEventId.size() > 0
+            && request.resource.data.googleEventId.size() <= 1024
+          )
+        )
+        && (
+          !request.resource.data.keys().hasAny(['googleEventUrl'])
+          || (
+            request.resource.data.googleEventUrl is string
+            && request.resource.data.googleEventUrl.size() <= 2048
+          )
+        )
         && request.resource.data.createdAt is timestamp
         && request.resource.data.updatedAt is timestamp;
     }

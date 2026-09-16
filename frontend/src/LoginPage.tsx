@@ -3,7 +3,7 @@ import { useAuth } from './AuthContext'
 const calendarDays = Array.from({ length: 35 }, (_, index) => index - 2)
 
 export function LoginPage() {
-  const { authError, signInWithGoogle } = useAuth()
+  const { authError, continueAsGuest, signInWithGoogle } = useAuth()
 
   return (
     <main className="login-page">
@@ -55,7 +55,7 @@ export function LoginPage() {
           <p className="eyebrow">Welcome</p>
           <h2>Sign in to your calendar</h2>
           <p className="login-supporting-copy">
-            Your schedules sync privately across your phone and computer.
+            Sign in to sync across devices, or continue as a guest on this browser.
           </p>
 
           <button className="google-button" type="button" onClick={() => void signInWithGoogle()}>
@@ -67,6 +67,11 @@ export function LoginPage() {
             </svg>
             Continue with Google
           </button>
+
+          <button className="guest-button" type="button" onClick={() => void continueAsGuest()}>
+            Continue as guest
+          </button>
+          <p className="guest-copy">Guest events stay in this browser. You can export them later.</p>
 
           {authError && <p className="message error" role="alert">{authError}</p>}
 
