@@ -9,6 +9,7 @@ import {
   resetCalendarSubscriptionUrl,
 } from './api'
 import { useAuth } from './AuthContext'
+import EventDetailsDialog from './EventDetailsDialog'
 import {
   saveManualEventToFirestore,
   saveScheduleToFirestore,
@@ -34,6 +35,7 @@ export default function App() {
   const [prompt, setPrompt] = useState('')
   const [proposal, setProposal] = useState<ScheduleProposal | null>(null)
   const [events, setEvents] = useState<CalendarEvent[]>([])
+  const [selectedEvent, setSelectedEvent] = useState<CalendarEvent | null>(null)
   const [manualEvent, setManualEvent] = useState<ManualCalendarEventInput>(
     createEmptyManualEvent,
   )
@@ -116,7 +118,7 @@ export default function App() {
     setCalendarError(null)
     setCalendarNotice(null)
     try {
-      if (isGuest) saveScheduleLocally(proposal)
+      if (isGuest) saveScheduleLocally(proposal, prompt.trim())
       else await saveScheduleToFirestore(user.uid, proposal, prompt.trim())
       setProposal(null)
       setPrompt('')
@@ -440,9 +442,10 @@ export default function App() {
                 )}
 
                 <label className="field-wide">
-                  <span>Notes <em>optional</em></span>
+                  <span>What to do <em>optional</em></span>
                   <textarea
                     value={manualEvent.description}
+                    placeholder="Add steps or instructions for this event"
                     onChange={(event) =>
                       setManualEvent((current) => ({
                         ...current,
@@ -486,17 +489,17 @@ export default function App() {
               dayMaxEvents={3}
               eventDisplay="block"
               eventClick={(event) => {
-                const googleEventUrl = event.event.extendedProps.googleEventUrl as
-                  | string
-                  | undefined
-                if (googleEventUrl) {
-                  window.open(googleEventUrl, '_blank', 'noopener,noreferrer')
-                }
+                event.jsEvent.preventDefault()
+                setSelectedEvent(events.find((calendarEvent) => calendarEvent.id === event.event.id) ?? null)
               }}
             />
           </div>
         </section>
       </main>
+
+      {selectedEvent && (
+        <EventDetailsDialog event={selectedEvent} onClose={() => setSelectedEvent(null)} />
+      )}
 
       <footer>
         <p>{isGuest ? 'Guest plans stay in this browser.' : 'Your plans stay private to your account.'}</p>

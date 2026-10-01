@@ -507,6 +507,40 @@ button:disabled { cursor: not-allowed; opacity: 0.45; }
 .fc .fc-daygrid-day-number { color: var(--ink); font-family: ui-monospace, 'SFMono-Regular', Menlo, monospace; font-size: 0.7rem; padding: 0.5rem; text-decoration: none; }
 .fc .fc-event { border-radius: 0; cursor: pointer; font-size: 0.7rem; padding: 0.12rem 0.2rem; }
 
+.event-details-dialog {
+  background: var(--panel);
+  border: 1px solid var(--ink);
+  box-shadow: 10px 10px 0 rgba(37, 36, 31, 0.2);
+  color: var(--ink);
+  max-height: min(90vh, 720px);
+  max-width: min(92vw, 560px);
+  padding: 0;
+  width: 100%;
+}
+
+.event-details-dialog::backdrop { background: rgba(24, 33, 36, 0.55); }
+.event-details-content { padding: clamp(1.5rem, 4vw, 2.5rem); }
+.event-details-heading { align-items: center; display: flex; justify-content: space-between; }
+.event-details-kind {
+  border: 1px solid currentColor;
+  color: var(--blue);
+  font-family: ui-monospace, 'SFMono-Regular', Menlo, monospace;
+  font-size: 0.68rem;
+  letter-spacing: 0.08em;
+  padding: 0.4rem 0.6rem;
+  text-transform: uppercase;
+}
+.event-details-kind.kind-milestone { color: #795900; }
+.event-details-kind.kind-deadline { color: #b42318; }
+.event-details-close { background: transparent; color: var(--muted); font-size: 1.7rem; line-height: 1; padding: 0.2rem 0.45rem; }
+.event-details-close:hover { color: var(--ink); }
+.event-details-dialog h2 { font-size: clamp(1.8rem, 5vw, 2.7rem); font-weight: 500; letter-spacing: -0.04em; line-height: 1.1; margin: 1.5rem 0 0.7rem; overflow-wrap: anywhere; }
+.event-details-date { color: var(--muted); font-size: 0.9rem; margin-bottom: 1.75rem; }
+.event-details-instructions { border-top: 1px solid var(--line); padding-top: 1.5rem; }
+.event-details-instructions h3 { font-size: 0.72rem; letter-spacing: 0.08em; margin-bottom: 0.65rem; text-transform: uppercase; }
+.event-details-instructions p { line-height: 1.65; margin: 0; overflow-wrap: anywhere; white-space: pre-wrap; }
+.event-details-external { color: var(--orange-dark); display: inline-block; font-size: 0.84rem; font-weight: 700; margin-top: 1.75rem; text-underline-offset: 0.2rem; }
+
 footer {
   border-top: 1px solid var(--line);
   color: var(--muted);

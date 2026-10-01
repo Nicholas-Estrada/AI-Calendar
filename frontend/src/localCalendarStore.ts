@@ -42,7 +42,7 @@ export function subscribeToLocalCalendarEvents(onEvents: (events: CalendarEvent[
   }
 }
 
-export function saveScheduleLocally(proposal: ScheduleProposal): void {
+export function saveScheduleLocally(proposal: ScheduleProposal, rawPrompt: string): void {
   const assignmentId = crypto.randomUUID()
   const events: LocalEvent[] = [
     {
@@ -52,6 +52,7 @@ export function saveScheduleLocally(proposal: ScheduleProposal): void {
       kind: 'deadline',
       source: 'ai',
       start: proposal.final_due_date,
+      description: `Submit ${proposal.assignment_title}. ${rawPrompt.trim()}`.slice(0, 1000),
       status: 'PENDING',
       title: `Due: ${proposal.assignment_title}`,
     },
