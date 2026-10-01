@@ -2,6 +2,7 @@ import {
   GoogleAuthProvider,
   getRedirectResult,
   onAuthStateChanged,
+  signInAnonymously,
   signInWithPopup,
   signInWithRedirect,
   signOut,
@@ -15,6 +16,8 @@ import { auth, db } from './firebase'
 interface AuthContextValue {
   authError: string | null
   isLoading: boolean
+  isGuest: boolean
+  continueAsGuest: () => Promise<void>
   signInWithGoogle: () => Promise<void>
   signOutUser: () => Promise<void>
   user: User | null
@@ -46,7 +49,16 @@ function friendlyAuthError(error: unknown): string {
       return 'This domain is not authorized in Firebase Authentication yet.'
     }
     if (error.message.includes('operation-not-allowed')) {
-      return 'Google sign-in is not enabled for this Firebase project yet.'
+      return 'This sign-in method is not enabled for this Firebase project yet.'
+    }
+    if (error.message.includes('admin-restricted-operation')) {
+      return 'Guest access is not enabled in Firebase Authentication yet.'
+    }
+    if (error.message.includes('network-request-failed')) {
+      return 'Could not reach Firebase Authentication. Check your connection and try again.'
+    }
+    if (error.message.includes('user-mismatch')) {
+      return 'Choose the same Google account you used to sign in.'
     }
   }
   return 'We could not sign you in. Please try again.'
@@ -56,7 +68,6 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [user, setUser] = useState<User | null>(null)
   const [isLoading, setIsLoading] = useState(true)
   const [authError, setAuthError] = useState<string | null>(null)
-
   useEffect(
     () =>
       onAuthStateChanged(auth, (nextUser) => {
@@ -69,7 +80,9 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   useEffect(() => {
     void getRedirectResult(auth)
       .then((result) => {
-        if (result) return saveUserProfile(result.user)
+        if (result) {
+          return saveUserProfile(result.user)
+        }
       })
       .catch((error: unknown) => setAuthError(friendlyAuthError(error)))
   }, [])
@@ -77,6 +90,15 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const value = useMemo<AuthContextValue>(
     () => ({
       authError,
+      isGuest: Boolean(user?.isAnonymous),
+      continueAsGuest: async () => {
+        setAuthError(null)
+        try {
+          await signInAnonymously(auth)
+        } catch (error) {
+          setAuthError(friendlyAuthError(error))
+        }
+      },
       isLoading,
       user,
       signInWithGoogle: async () => {

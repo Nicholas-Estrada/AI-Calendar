@@ -27,7 +27,7 @@ body {
     var(--paper);
 }
 
-button, textarea { font: inherit; }
+button, input, select, textarea { font: inherit; }
 button, a { -webkit-tap-highlight-color: transparent; }
 
 .app-shell { min-height: 100vh; }
@@ -198,6 +198,23 @@ textarea:focus {
   box-shadow: 0 0 0 3px rgba(233, 88, 43, 0.12);
 }
 
+input,
+select {
+  background: #faf7f0;
+  border: 1px solid var(--line);
+  color: var(--ink);
+  min-height: 2.8rem;
+  outline: none;
+  padding: 0.7rem 0.8rem;
+  width: 100%;
+}
+
+input:focus,
+select:focus {
+  border-color: var(--orange);
+  box-shadow: 0 0 0 3px rgba(233, 88, 43, 0.12);
+}
+
 .composer-actions,
 .proposal-actions {
   align-items: center;
@@ -247,6 +264,7 @@ button:disabled { cursor: not-allowed; opacity: 0.45; }
 
 .message.error { background: #fee2e2; color: #991b1b; }
 .message.success { background: #dcfce7; color: #166534; }
+.message.calendar-prompt { background: #fff7ed; color: #9a3412; }
 
 .proposal-panel,
 .calendar-panel {
@@ -317,9 +335,120 @@ button:disabled { cursor: not-allowed; opacity: 0.45; }
 
 .proposal-actions { border-top: 1px solid var(--line); padding-top: 1.5rem; }
 
+.calendar-control-area {
+  align-items: center;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.7rem;
+  justify-content: flex-end;
+}
+
+.calendar-connection {
+  align-items: center;
+  color: var(--muted);
+  display: inline-flex;
+  font-family: ui-monospace, 'SFMono-Regular', Menlo, monospace;
+  font-size: 0.66rem;
+  gap: 0.4rem;
+  text-transform: uppercase;
+}
+
+.calendar-connection i {
+  background: #a8a29e;
+  border-radius: 50%;
+  height: 0.5rem;
+  width: 0.5rem;
+}
+
+.calendar-connection.is-connected i { background: #16a34a; }
+
+.calendar-feedback { margin: -0.75rem 0 1.5rem; }
+
+.manual-event-form {
+  background: #f7f2e9;
+  border: 1px solid var(--line);
+  margin-bottom: 2rem;
+  padding: clamp(1.25rem, 3vw, 2rem);
+}
+
+.manual-form-heading {
+  align-items: flex-end;
+  border-bottom: 1px solid var(--line);
+  display: flex;
+  gap: 2rem;
+  justify-content: space-between;
+  margin-bottom: 1.5rem;
+  padding-bottom: 1rem;
+}
+
+.manual-form-heading .eyebrow { margin-bottom: 0.5rem; }
+.manual-form-heading h3 { font-size: 1.5rem; margin: 0; }
+.manual-form-heading > p {
+  color: var(--muted);
+  font-size: 0.78rem;
+  margin: 0;
+}
+
+.manual-form-grid {
+  display: grid;
+  gap: 1rem;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+
+.manual-form-grid label:not(.all-day-field) > span {
+  display: block;
+  font-size: 0.72rem;
+  font-weight: 700;
+  margin-bottom: 0.45rem;
+}
+
+.manual-form-grid label em {
+  color: var(--muted);
+  font-weight: 400;
+}
+
+.manual-form-grid .field-wide { grid-column: 1 / -1; }
+
+.all-day-field {
+  align-items: center;
+  align-self: end;
+  display: flex;
+  gap: 0.55rem;
+  min-height: 2.8rem;
+}
+
+.all-day-field input {
+  accent-color: var(--orange);
+  min-height: auto;
+  width: auto;
+}
+
+.all-day-field span { font-size: 0.78rem; font-weight: 700; }
+
+.manual-form-actions {
+  border-top: 1px solid var(--line);
+  display: flex;
+  gap: 0.75rem;
+  justify-content: flex-end;
+  margin-top: 1.5rem;
+  padding-top: 1.5rem;
+}
+
+.calendar-meta {
+  align-items: center;
+  color: var(--muted);
+  display: flex;
+  font-size: 0.7rem;
+  justify-content: space-between;
+  margin-bottom: 1rem;
+}
+
+.calendar-scroll { overflow-x: auto; }
+
 .legend { display: flex; gap: 1rem; }
 .legend span { align-items: center; color: var(--muted); display: flex; font-size: 0.75rem; gap: 0.35rem; }
 .legend i { border-radius: 999px; display: inline-block; height: 0.55rem; width: 0.55rem; }
+.event-dot { background: var(--blue); }
 .milestone-dot { background: #eab308; }
 .deadline-dot { background: #ef4444; }
 
@@ -339,7 +468,7 @@ button:disabled { cursor: not-allowed; opacity: 0.45; }
 .fc .fc-button { border-radius: 0; box-shadow: none !important; font-size: 0.72rem; text-transform: capitalize; }
 .fc .fc-col-header-cell-cushion { color: var(--muted); font-size: 0.68rem; padding: 0.65rem 0; text-decoration: none; text-transform: uppercase; }
 .fc .fc-daygrid-day-number { color: var(--ink); font-family: ui-monospace, 'SFMono-Regular', Menlo, monospace; font-size: 0.7rem; padding: 0.5rem; text-decoration: none; }
-.fc .fc-event { border-radius: 0; font-size: 0.7rem; padding: 0.12rem 0.2rem; }
+.fc .fc-event { border-radius: 0; cursor: pointer; font-size: 0.7rem; padding: 0.12rem 0.2rem; }
 
 footer {
   border-top: 1px solid var(--line);
@@ -552,6 +681,18 @@ footer p { margin: 0; }
 .google-button:hover { border-color: var(--ink); transform: translate(-1px, -1px); }
 .google-button svg { height: 1.25rem; width: 1.25rem; }
 
+.guest-button {
+  background: transparent;
+  border: 1px solid var(--ink);
+  color: var(--ink);
+  margin-top: 0.75rem;
+  padding: 0.9rem 1.25rem;
+  width: 100%;
+}
+
+.guest-button:hover { background: #efe9dd; }
+.guest-copy { color: var(--muted); font-size: 0.75rem; line-height: 1.5; text-align: center; }
+
 .login-reassurance {
   align-items: flex-start;
   border-top: 1px solid var(--line);
@@ -579,6 +720,7 @@ footer p { margin: 0; }
   .hero { grid-template-columns: 1fr; min-height: auto; padding: 4rem 0; }
   h1 { font-size: clamp(3.5rem, 16vw, 6rem); }
   .section-heading { align-items: flex-start; flex-direction: column; gap: 1.25rem; }
+  .calendar-control-area { justify-content: flex-start; }
   .deadline-chip { width: 100%; }
   .login-page { grid-template-columns: 1fr; }
   .login-story { min-height: 58vh; }
@@ -594,6 +736,12 @@ footer p { margin: 0; }
   .speech-button { text-align: left; }
   .milestone-title-row { align-items: flex-start; flex-direction: column; gap: 0.25rem; }
   .calendar-heading .legend { flex-wrap: wrap; }
+  .manual-form-heading { align-items: flex-start; flex-direction: column; gap: 0.5rem; }
+  .manual-form-grid { grid-template-columns: 1fr; }
+  .manual-form-grid .field-wide { grid-column: auto; }
+  .manual-form-actions { align-items: stretch; flex-direction: column; }
+  .calendar-meta { align-items: flex-start; flex-direction: column; gap: 0.75rem; }
+  .calendar-scroll .fc { min-width: 680px; }
   .fc .fc-toolbar { align-items: flex-start; flex-direction: column; gap: 0.75rem; }
   footer { flex-direction: column; gap: 0.5rem; }
   .login-story { min-height: auto; padding: 1.5rem 1.25rem 2.5rem; }

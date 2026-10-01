@@ -5,36 +5,51 @@ import {
   orderBy,
   query,
   serverTimestamp,
+  setDoc,
   writeBatch,
   type Unsubscribe,
 } from 'firebase/firestore'
 
 import { db } from './firebase'
-import type { CalendarEvent, ScheduleProposal } from './types'
+import type {
+  CalendarEvent,
+  CalendarEventKind,
+  GoogleCalendarEventReference,
+  ManualCalendarEventInput,
+  ScheduleProposal,
+} from './types'
 
-interface StoredEvent {
+export interface StoredEvent {
+  allDay?: boolean
   assignmentId: string
   description?: string
-  kind: 'deadline' | 'milestone'
+  end?: string
+  googleEventId?: string
+  googleEventUrl?: string
+  kind: CalendarEventKind
   source: 'ai' | 'manual'
   start: string
   status: 'PENDING' | 'COMPLETED'
   title: string
 }
 
-function toCalendarEvent(id: string, data: StoredEvent): CalendarEvent {
+export function toCalendarEvent(id: string, data: StoredEvent): CalendarEvent {
   const isDeadline = data.kind === 'deadline'
+  const isManualEvent = data.kind === 'event'
   return {
     id,
     title: data.title,
     start: data.start,
-    allDay: true,
-    backgroundColor: isDeadline ? '#ef4444' : '#eab308',
-    borderColor: isDeadline ? '#dc2626' : '#ca8a04',
+    end: data.end,
+    allDay: data.allDay ?? true,
+    backgroundColor: isDeadline ? '#ef4444' : isManualEvent ? '#164e63' : '#eab308',
+    borderColor: isDeadline ? '#dc2626' : isManualEvent ? '#0d3848' : '#ca8a04',
     extendedProps: {
       kind: data.kind,
       assignmentId: data.assignmentId,
       description: data.description,
+      googleEventId: data.googleEventId,
+      googleEventUrl: data.googleEventUrl,
       status: data.status,
     },
   }
@@ -63,6 +78,7 @@ export async function saveScheduleToFirestore(
   uid: string,
   proposal: ScheduleProposal,
   rawPrompt: string,
+  googleEvents: GoogleCalendarEventReference[] = [],
 ): Promise<void> {
   const batch = writeBatch(db)
   const assignmentRef = doc(collection(db, 'users', uid, 'assignments'))
@@ -84,11 +100,12 @@ export async function saveScheduleToFirestore(
     start: proposal.final_due_date,
     status: 'PENDING',
     title: `Due: ${proposal.assignment_title}`,
+    ...googleEventFields(googleEvents[0]),
     createdAt: serverTimestamp(),
     updatedAt: serverTimestamp(),
   })
 
-  proposal.events.forEach((milestone) => {
+  proposal.events.forEach((milestone, index) => {
     const eventRef = doc(collection(db, 'users', uid, 'events'))
     batch.set(eventRef, {
       assignmentId: assignmentRef.id,
@@ -98,10 +115,44 @@ export async function saveScheduleToFirestore(
       start: milestone.date,
       status: 'PENDING',
       title: milestone.title,
+      ...googleEventFields(googleEvents[index + 1]),
       createdAt: serverTimestamp(),
       updatedAt: serverTimestamp(),
     })
   })
 
   await batch.commit()
+}
+
+export async function saveManualEventToFirestore(
+  uid: string,
+  event: ManualCalendarEventInput,
+  googleEvent?: GoogleCalendarEventReference,
+): Promise<void> {
+  const eventRef = doc(collection(db, 'users', uid, 'events'))
+  const start = event.allDay ? event.date : `${event.date}T${event.startTime}:00`
+  const end = event.allDay ? undefined : `${event.date}T${event.endTime}:00`
+
+  await setDoc(eventRef, {
+    allDay: event.allDay,
+    assignmentId: 'manual',
+    description: event.description.trim(),
+    ...(end ? { end } : {}),
+    kind: event.kind,
+    source: 'manual',
+    start,
+    status: 'PENDING',
+    title: event.title.trim(),
+    ...googleEventFields(googleEvent),
+    createdAt: serverTimestamp(),
+    updatedAt: serverTimestamp(),
+  })
+}
+
+function googleEventFields(event?: GoogleCalendarEventReference) {
+  if (!event) return {}
+  return {
+    googleEventId: event.id,
+    ...(event.htmlLink ? { googleEventUrl: event.htmlLink } : {}),
+  }
 }
