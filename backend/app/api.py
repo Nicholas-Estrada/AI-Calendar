@@ -1,6 +1,6 @@
 from typing import Annotated
 
-from fastapi import APIRouter, Depends, File, HTTPException, UploadFile, status
+from fastapi import APIRouter, Depends, File, HTTPException, Request, UploadFile, status
 from fastapi.concurrency import run_in_threadpool
 from fastapi.responses import Response
 
@@ -15,13 +15,18 @@ from app.models import (
     ScheduleProposal,
     TranscriptionResponse,
 )
+from app.services.calendar_feed import (
+    ensure_subscription_token,
+    events_for_subscription,
+    reset_subscription_token,
+)
 from app.services.gemini import (
     GeminiScheduler,
     InferenceUnavailableError,
     InvalidInferenceError,
     get_scheduler,
 )
-from app.services.ical import build_calendar
+from app.services.ical import build_calendar, build_firestore_calendar
 from app.services.scheduler import Scheduler
 from app.services.transcription import (
     LocalTranscriber,
@@ -30,7 +35,84 @@ from app.services.transcription import (
 )
 
 router = APIRouter(prefix="/api", dependencies=[Depends(require_authenticated_user)])
+public_router = APIRouter(prefix="/api")
 MAX_AUDIO_BYTES = 15 * 1024 * 1024
+
+
+def subscription_url(request: Request, token: str, settings: Settings) -> str:
+    if settings.public_api_origin:
+        return f"{settings.public_api_origin.rstrip('/')}/api/calendar/feed/{token}.ics"
+    return str(request.url_for("get_calendar_subscription", token=token))
+
+
+@router.post("/calendar/subscription")
+async def create_calendar_subscription(
+    request: Request,
+    user: Annotated[dict, Depends(require_authenticated_user)],
+    settings: Annotated[Settings, Depends(get_settings)],
+) -> dict[str, str]:
+    if user.get("firebase", {}).get("sign_in_provider") == "anonymous":
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Guest calendars stay on this device. Export an iCalendar file instead.",
+        )
+    try:
+        token = await run_in_threadpool(
+            ensure_subscription_token, user["uid"], settings.firebase_project_id
+        )
+    except Exception as error:
+        raise HTTPException(
+            status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+            detail="The calendar subscription could not be created right now.",
+        ) from error
+    return {"url": subscription_url(request, token, settings)}
+
+
+@router.post("/calendar/subscription/reset")
+async def reset_calendar_subscription(
+    request: Request,
+    user: Annotated[dict, Depends(require_authenticated_user)],
+    settings: Annotated[Settings, Depends(get_settings)],
+) -> dict[str, str]:
+    if user.get("firebase", {}).get("sign_in_provider") == "anonymous":
+        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN)
+    try:
+        token = await run_in_threadpool(
+            reset_subscription_token, user["uid"], settings.firebase_project_id
+        )
+    except Exception as error:
+        raise HTTPException(
+            status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+            detail="The calendar subscription could not be reset right now.",
+        ) from error
+    return {"url": subscription_url(request, token, settings)}
+
+
+@public_router.get("/calendar/feed/{token}.ics")
+async def get_calendar_subscription(
+    token: str,
+    settings: Annotated[Settings, Depends(get_settings)],
+) -> Response:
+    try:
+        feed = await run_in_threadpool(
+            events_for_subscription, token, settings.firebase_project_id
+        )
+    except Exception as error:
+        raise HTTPException(
+            status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+            detail="The calendar subscription is temporarily unavailable.",
+        ) from error
+    if feed is None:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND)
+    events, timezone = feed
+    return Response(
+        content=build_firestore_calendar(events, timezone),
+        media_type="text/calendar",
+        headers={
+            "Content-Disposition": 'inline; filename="ai-calendar.ics"',
+            "Cache-Control": "private, max-age=300",
+        },
+    )
 
 
 def scheduler_dependency(

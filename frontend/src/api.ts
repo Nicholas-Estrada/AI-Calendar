@@ -33,6 +33,16 @@ export async function transcribeAudio(audio: Blob): Promise<string> {
   return response.data.text
 }
 
+export async function getCalendarSubscriptionUrl(): Promise<string> {
+  const response = await api.post<{ url: string }>('/calendar/subscription')
+  return response.data.url
+}
+
+export async function resetCalendarSubscriptionUrl(): Promise<string> {
+  const response = await api.post<{ url: string }>('/calendar/subscription/reset')
+  return response.data.url
+}
+
 export function getErrorMessage(error: unknown): string {
   if (axios.isAxiosError(error)) {
     const detail = error.response?.data?.detail
