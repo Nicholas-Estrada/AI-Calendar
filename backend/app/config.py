@@ -9,7 +9,7 @@ class Settings(BaseSettings):
     app_name: str = "AI Calendar API"
     database_path: Path = Path("./data/lias.sqlite3")
     gemini_api_key: SecretStr | None = None
-    gemini_model: str = "gemini-2.5-flash"
+    gemini_model: str = "gemini-3.6-flash"
     gemini_timeout_seconds: float = 60
     firebase_project_id: str = "lias-abff9"
     firebase_auth_required: bool = True
